@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Game.Scripts.LiveObjects
 {
@@ -17,12 +18,26 @@ namespace Game.Scripts.LiveObjects
 
         private void OnEnable()
         {
+            InteractableZone.onHoldEnded += InteractableZone_onHoldEnded;
             InteractableZone.onZoneInteractionComplete += InteractableZone_onZoneInteractionComplete;
         }
 
+        private void InteractableZone_onHoldEnded(int zoneID)
+        {
+            if (zoneID == 6) //Crate
+            {
+                int itemCount = 5;
+                while(itemCount > 0 && _brakeOff.Count > 0)
+                {
+                    BreakPart();
+                    itemCount--;
+                }
+            }
+        }
+
+
         private void InteractableZone_onZoneInteractionComplete(InteractableZone zone)
         {
-            
             if (_isReadyToBreak == false && _brakeOff.Count >0)
             {
                 _wholeCrate.SetActive(false);
@@ -32,7 +47,7 @@ namespace Game.Scripts.LiveObjects
 
             if (_isReadyToBreak && zone.GetZoneID() == 6) //Crate zone            
             {
-                if (_brakeOff.Count > 0)
+                if (_brakeOff.Count > 0 && _interactableZone.PressedKey == _interactableZone.ZoneKeyInput)
                 {
                     BreakPart();
                     StartCoroutine(PunchDelay());
@@ -50,11 +65,8 @@ namespace Game.Scripts.LiveObjects
         private void Start()
         {
             _brakeOff.AddRange(_pieces);
-            
         }
-
-
-
+        
         public void BreakPart()
         {
             int rng = Random.Range(0, _brakeOff.Count);
@@ -71,12 +83,12 @@ namespace Game.Scripts.LiveObjects
                 yield return new WaitForEndOfFrame();
                 delayTimer += Time.deltaTime;
             }
-
             _interactableZone.ResetAction(6);
         }
-
+        
         private void OnDisable()
         {
+            InteractableZone.onHoldEnded -= InteractableZone_onHoldEnded;
             InteractableZone.onZoneInteractionComplete -= InteractableZone_onZoneInteractionComplete;
         }
     }

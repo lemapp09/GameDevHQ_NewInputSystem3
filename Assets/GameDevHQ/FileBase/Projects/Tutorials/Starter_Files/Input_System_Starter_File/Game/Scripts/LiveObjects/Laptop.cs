@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using Cinemachine;
+using UnityEngine.InputSystem;
 
 namespace Game.Scripts.LiveObjects
 {
@@ -33,7 +34,7 @@ namespace Game.Scripts.LiveObjects
         {
             if (_hacked == true)
             {
-                if (Input.GetKeyDown(KeyCode.E))
+                if (Keyboard.current.eKey.wasPressedThisFrame) // Input.GetKeyDown(KeyCode.E))
                 {
                     var previous = _activeCamera;
                     _activeCamera++;
@@ -47,7 +48,7 @@ namespace Game.Scripts.LiveObjects
                     _cameras[previous].Priority = 9;
                 }
 
-                if (Input.GetKeyDown(KeyCode.Escape))
+                if (Keyboard.current.escapeKey.wasPressedThisFrame) // Input.GetKeyDown(KeyCode.Escape))
                 {
                     _hacked = false;
                     onHackEnded?.Invoke();
@@ -114,6 +115,4 @@ namespace Game.Scripts.LiveObjects
             InteractableZone.onHoldEnded -= InteractableZone_onHoldEnded;
         }
     }
-
 }
-

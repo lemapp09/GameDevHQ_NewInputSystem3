@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using Game.Scripts.UI;
-
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
 
 namespace Game.Scripts.LiveObjects
 {
@@ -39,13 +38,14 @@ namespace Game.Scripts.LiveObjects
         [SerializeField]
         private Sprite _inventoryIcon;
         [SerializeField]
-        private KeyCode _zoneKeyInput;
+        private Key _zoneKeyInput;
+        public Key ZoneKeyInput {
+            get { return _zoneKeyInput; }
+        }
         [SerializeField]
         private KeyState _keyState;
         [SerializeField]
         private GameObject _marker;
-
-        private bool _inHoldState = false;
 
         private static int _currentZoneID = 0;
         public static int CurrentZoneID
@@ -60,8 +60,12 @@ namespace Game.Scripts.LiveObjects
                          
             }
         }
-
-
+        private PlayerInputActions _playerInputActions;
+        private Key _pressedKey;
+        public Key PressedKey
+        {
+            get { return _pressedKey; }
+        }
         public static event Action<InteractableZone> onZoneInteractionComplete;
         public static event Action<int> onHoldStarted;
         public static event Action<int> onHoldEnded;
@@ -69,13 +73,82 @@ namespace Game.Scripts.LiveObjects
         private void OnEnable()
         {
             InteractableZone.onZoneInteractionComplete += SetMarker;
-
+            _playerInputActions = new PlayerInputActions();
+            _playerInputActions.Interactables.Pressed.performed += OnPressed;
+            _playerInputActions.Interactables.Hold.performed += OnHeld;
+            _playerInputActions.Interactables.Hold.canceled += EndPressHold;
         }
+
+        private void EndPressHold(InputAction.CallbackContext context)
+        {
+            if (_inZone) {
+                onHoldEnded?.Invoke(_zoneID);
+            }
+        }
+
+        private void OnPressed(InputAction.CallbackContext context)
+        {
+            if ((_inZone == true))
+            {
+                // AnyKey Pressed 
+                if (Keyboard.current.anyKey.wasPressedThisFrame) {
+                    foreach (KeyControl k in Keyboard.current.allKeys) {
+                        // Compares pressed key against all known 111 keyboard codes
+                        if (k.wasPressedThisFrame) // Only if it was 'freshly' pressed
+                        { 
+                            Debug.Log("Interactable Zone - Pressed reached.");
+                            _pressedKey = k.keyCode;
+                            if (k.keyCode == _zoneKeyInput  && _keyState != KeyState.PressHold) {
+                                // pressed key must match expected snd the Zone isn't PressHold
+                                switch (_zoneType)
+                                {
+                                    case ZoneType.Collectable:
+                                        if (_itemsCollected == false) {
+                                            CollectItems();
+                                            _itemsCollected = true;
+                                            UIManager.Instance.DisplayInteractableZoneMessage(false);
+                                        }
+                                        break;
+
+                                    case ZoneType.Action:
+                                        if (_actionPerformed == false) {
+                                            PerformAction();
+                                            _actionPerformed = true;
+                                            UIManager.Instance.DisplayInteractableZoneMessage(false);
+                                        }
+                                        break;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        private void OnHeld(InputAction.CallbackContext context)
+        {
+            if (_inZone) {
+                if (_keyState == KeyState.PressHold ) {
+                    // AnyKey Held 
+
+                    if (_pressedKey == _zoneKeyInput) {
+                        switch (_zoneType) {
+                            case ZoneType.HoldAction:
+                                PerformHoldAction();
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+
 
         private void OnTriggerEnter(Collider other)
         {
             if (other.CompareTag("Player") && _currentZoneID > _requiredID)
             {
+                _playerInputActions.Interactables.Enable();
                 switch (_zoneType)
                 {
                     case ZoneType.Collectable:
@@ -110,7 +183,7 @@ namespace Game.Scripts.LiveObjects
                         _inZone = true;
                         if (_displayMessage != null)
                         {
-                            string message = $"Press the {_zoneKeyInput.ToString()} key to {_displayMessage}.";
+                            string message = $"Hold the {_zoneKeyInput.ToString()} key to {_displayMessage}.";
                             UIManager.Instance.DisplayInteractableZoneMessage(true, message);
                         }
                         else
@@ -119,64 +192,10 @@ namespace Game.Scripts.LiveObjects
                 }
             }
         }
-
-        private void Update()
-        {
-            if (_inZone == true)
-            {
-
-                if (Input.GetKeyDown(_zoneKeyInput) && _keyState != KeyState.PressHold)
-                {
-                    //press
-                    switch (_zoneType)
-                    {
-                        case ZoneType.Collectable:
-                            if (_itemsCollected == false)
-                            {
-                                CollectItems();
-                                _itemsCollected = true;
-                                UIManager.Instance.DisplayInteractableZoneMessage(false);
-                            }
-                            break;
-
-                        case ZoneType.Action:
-                            if (_actionPerformed == false)
-                            {
-                                PerformAction();
-                                _actionPerformed = true;
-                                UIManager.Instance.DisplayInteractableZoneMessage(false);
-                            }
-                            break;
-                    }
-                }
-                else if (Input.GetKey(_zoneKeyInput) && _keyState == KeyState.PressHold && _inHoldState == false)
-                {
-                    _inHoldState = true;
-
-                   
-
-                    switch (_zoneType)
-                    {                      
-                        case ZoneType.HoldAction:
-                            PerformHoldAction();
-                            break;           
-                    }
-                }
-
-                if (Input.GetKeyUp(_zoneKeyInput) && _keyState == KeyState.PressHold)
-                {
-                    _inHoldState = false;
-                    onHoldEnded?.Invoke(_zoneID);
-                }
-
-               
-            }
-        }
-       
+        
         private void CollectItems()
         {
-            foreach (var item in _zoneItems)
-            {
+            foreach (var item in _zoneItems) {
                 item.SetActive(false);
             }
 
@@ -190,8 +209,7 @@ namespace Game.Scripts.LiveObjects
 
         private void PerformAction()
         {
-            foreach (var item in _zoneItems)
-            {
+            foreach (var item in _zoneItems) {
                 item.SetActive(true);
             }
 

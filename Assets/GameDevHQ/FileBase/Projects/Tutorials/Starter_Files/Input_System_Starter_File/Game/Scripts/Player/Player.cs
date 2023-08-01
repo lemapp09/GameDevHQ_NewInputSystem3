@@ -1,8 +1,7 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using Game.Scripts.LiveObjects;
 using Cinemachine;
+using UnityEngine.InputSystem;
 
 namespace Game.Scripts.Player
 {
@@ -21,6 +20,7 @@ namespace Game.Scripts.Player
         private CinemachineVirtualCamera _followCam;
         [SerializeField]
         private GameObject _model;
+        private PlayerInputActions _inputActions;
 
 
         private void OnEnable()
@@ -46,6 +46,8 @@ namespace Game.Scripts.Player
 
             if (_anim == null)
                 Debug.Log("Failed to connect the Animator");
+            _inputActions = new PlayerInputActions();
+            _inputActions.Player.Movement.Enable();
         }
 
         private void Update()
@@ -58,8 +60,10 @@ namespace Game.Scripts.Player
         private void CalcutateMovement()
         {
             _playerGrounded = _controller.isGrounded;
-            float h = Input.GetAxisRaw("Horizontal");
-            float v = Input.GetAxisRaw("Vertical");
+            float h = _inputActions.Player.Movement.ReadValue<Vector2>().x;
+            // float h = Input.GetAxisRaw("Horizontal");
+            float v = _inputActions.Player.Movement.ReadValue<Vector2>().y;
+            // float v = Input.GetAxisRaw("Vertical");
 
             transform.Rotate(transform.up, h);
 
